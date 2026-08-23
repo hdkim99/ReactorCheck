@@ -4,69 +4,142 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: reactorcheck-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  quality:
-    runs-on: ubuntu-latest
+  required:
+    name: CI / required
+    # Public fork code must never execute on persistent self-hosted research hardware.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, dgx-spark]
+    timeout-minutes: 60
+    env:
+      PIP_NO_CACHE_DIR: "1"
+      REACTORCHECK_CI_VENV: ${{ runner.temp }}/reactorcheck-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      REACTORCHECK_WHEEL_VENV: ${{ runner.temp }}/reactorcheck-wheel-${{ github.run_id }}-${{ github.run_attempt }}
+      REACTORCHECK_CI_OUTPUT: ${{ runner.temp }}/reactorcheck-output-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
-      - run: ruff check .
-      - run: mypy src
+          clean: true
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+      - name: Install Tk and Xvfb runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk xvfb
+      - name: Create isolated environments
+        run: |
+          python -m venv "$REACTORCHECK_CI_VENV"
+          python -m venv "$REACTORCHECK_WHEEL_VENV"
+          mkdir -p "$REACTORCHECK_CI_OUTPUT"
+      - name: Install project in the isolated environment
+        run: |
+          "$REACTORCHECK_CI_VENV/bin/python" -m pip install --upgrade pip
+          "$REACTORCHECK_CI_VENV/bin/python" -m pip install -e ".[dev]"
+          "$REACTORCHECK_CI_VENV/bin/python" -m pip check
+      - name: Check formatting
+        run: >-
+          "$REACTORCHECK_CI_VENV/bin/python" -m ruff format --check .
+      - name: Lint
+        run: >-
+          "$REACTORCHECK_CI_VENV/bin/python" -m ruff check .
+      - name: Type check
+        run: >-
+          "$REACTORCHECK_CI_VENV/bin/python" -m mypy src
+      - name: Unit, integration, and scientific tests
+        run: >-
+          "$REACTORCHECK_CI_VENV/bin/python" -m pytest
+      - name: Build and validate distributions
+        run: |
+          "$REACTORCHECK_CI_VENV/bin/python" -m build
+          "$REACTORCHECK_CI_VENV/bin/python" -m twine check dist/*
+      - name: Verify clean wheel on ARM64
+        run: |
+          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install --upgrade pip
+          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install dist/*.whl
+          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip check
+          "$REACTORCHECK_WHEEL_VENV/bin/python" - <<'PY'
+          import importlib.metadata
+          import platform
+          import reactorcheck
 
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
-      - run: pytest
-      - name: CLI smoke
-        run: >-
-          reactorcheck analyze examples/synthetic_reactor.csv
-          --config examples/synthetic_config.json
-          --output /tmp/reactorcheck.xlsx
-          --plot /tmp/reactorcheck.png
+          machine = platform.machine().lower()
+          assert machine in {"aarch64", "arm64"}, machine
+          assert reactorcheck.__version__ == importlib.metadata.version("reactorcheck")
+          print(machine, reactorcheck.__version__, reactorcheck.__file__)
+          PY
+      - name: Exercise installed CLI and example workflow
+        run: |
+          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --help
+          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --version
+          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" analyze \
+            examples/synthetic_composition.csv \
+            --config examples/synthetic_composition_config.json \
+            --output "$REACTORCHECK_CI_OUTPUT/installed.xlsx" \
+            --plot "$REACTORCHECK_CI_OUTPUT/installed.png"
+          test -s "$REACTORCHECK_CI_OUTPUT/installed.xlsx"
+          test -s "$REACTORCHECK_CI_OUTPUT/installed.png"
+      - name: Exercise installed GUI wiring
+        run: |
+          xvfb-run -a "$REACTORCHECK_WHEEL_VENV/bin/python" \
+            tests/gui_widget_smoke.py \
+            examples/synthetic_composition.csv \
+            examples/synthetic_composition_config.json \
+            "$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
+          test -s "$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
+      - name: Remove isolated environments and generated files
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
 
-  package-and-gui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
-      - run: python -m pip install --upgrade pip build
-      - run: python -m build
-      - run: python -m pip install dist/*.whl
-      - run: reactorcheck --version
-      - name: Installed-package analysis smoke
-        working-directory: /tmp
-        run: >-
-          reactorcheck analyze "$GITHUB_WORKSPACE/examples/synthetic_reactor.csv"
-          --config "$GITHUB_WORKSPACE/examples/synthetic_config.json"
-          --output /tmp/installed.xlsx
-      - name: GUI widget/backend wiring smoke
-        run: >-
-          xvfb-run -a python tests/gui_widget_smoke.py
-          examples/synthetic_composition.csv
-          examples/synthetic_composition_config.json
-          /tmp/gui-wired.xlsx
+          runner_temp = Path(os.environ["RUNNER_TEMP"]).resolve()
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          for variable in (
+              "REACTORCHECK_CI_VENV",
+              "REACTORCHECK_WHEEL_VENV",
+              "REACTORCHECK_CI_OUTPUT",
+          ):
+              target = Path(os.environ[variable]).resolve()
+              if runner_temp not in target.parents:
+                  raise RuntimeError(f"Refusing to clean outside runner temp: {target}")
+              shutil.rmtree(target, ignore_errors=True)
+          for relative in (
+              "build",
+              "dist",
+              ".mypy_cache",
+              ".pytest_cache",
+              ".ruff_cache",
+              ".coverage",
+              "htmlcov",
+          ):
+              target = (workspace / relative).resolve()
+              if workspace not in target.parents:
+                  raise RuntimeError(f"Refusing to clean outside workspace: {target}")
+              if target.is_dir():
+                  shutil.rmtree(target)
+              elif target.exists():
+                  target.unlink()
+          for target in workspace.rglob("__pycache__"):
+              if workspace in target.resolve().parents:
+                  shutil.rmtree(target)
+          PY
+          test -z "$(git status --porcelain)"

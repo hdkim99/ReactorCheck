@@ -24,14 +24,15 @@ settings, and source provenance.
 ## Install
 
 Python 3.10 or newer is required. Tk is needed only for the desktop GUI.
-PyPI publication is prepared but has not been performed; install the current
-public source directly:
 
 ```bash
-python -m pip install "git+https://github.com/hdkim99/ReactorCheck.git"
+python -m pip install reactorcheck
 ```
 
-## 30-second composition quickstart
+For the bundled example datasets, unreleased development code, or contributions,
+clone the public source and use an editable install instead:
+
+## 30-second bundled example (source install)
 
 ```bash
 git clone https://github.com/hdkim99/ReactorCheck.git
@@ -57,7 +58,7 @@ reactorcheck analyze examples/synthetic_reactor.csv \
   --output reactorcheck-direct.xlsx
 ```
 
-## Supported scope in 0.2.0
+## Supported scope in 0.2.x
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -72,7 +73,7 @@ reactorcheck analyze examples/synthetic_reactor.csv \
 | Rate, mass STY, GHSV, WHSV | Supported | Definitions and units are explicit |
 | Multi-variable steady state + override | Supported | Candidate detection, not physical proof |
 | QC, plot, Excel/CSV export | Supported | Settings and provenance included |
-| Multi-reactant conversion/selectivity basis | Planned | No implicit combined denominator in 0.2 |
+| Multi-reactant conversion/selectivity basis | Planned | No implicit combined denominator in 0.2.x |
 
 ## Scientific safeguards
 
@@ -98,7 +99,7 @@ internal-standard feed, reconstruction equation, and the user's assumption text.
 
 ## Limitations
 
-- Version 0.2 uses one configured reference reactant; multi-reactant aggregate
+- Version 0.2.x uses one configured reference reactant; multi-reactant aggregate
   bases and stoichiometric selectivity coefficients are planned, not inferred.
 - Internal-standard reconstruction assumes `F_std,out = F_std,in` exactly as the
   user declares; ReactorCheck cannot prove nonreactivity from composition data.

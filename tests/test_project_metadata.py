@@ -6,6 +6,29 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 
 
+def test_readme_leads_with_pypi_install_and_has_current_status() -> None:
+    readme = (ROOT / "README.md").read_text()
+    pypi_install = "python -m pip install reactorcheck"
+    source_install = "python -m pip install -e ."
+    assert pypi_install in readme
+    assert source_install in readme
+    assert readme.index(pypi_install) < readme.index(source_install)
+    assert "publication is prepared but has not been performed" not in readme
+
+
+def test_general_ci_targets_dgx_and_blocks_fork_pull_requests() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "runs-on: [self-hosted, dgx-spark]" in workflow
+    assert "ubuntu-latest" not in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "github.event.pull_request.head.repo.full_name == github.repository" in workflow
+    assert "PIP_NO_CACHE_DIR" in workflow
+    assert "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09" in workflow
+    assert "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1" in workflow
+    assert 'machine in {"aarch64", "arm64"}' in workflow
+    assert "xvfb-run" in workflow
+
+
 def test_experimental_schema_is_valid_json_and_not_stable() -> None:
     schema = json.loads(
         (ROOT / "schemas" / "reactorcheck-interchange.experimental.schema.json").read_text()

@@ -3,7 +3,14 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and
 versions follow semantic versioning.
 
-## [0.2.0] - Unreleased
+## [0.2.1] - 2026-08-23
+
+### Fixed
+
+- Corrected the primary installation and publication-status documentation for
+  the public PyPI package. There are no scientific API or calculation changes.
+
+## [0.2.0] - 2026-08-23
 
 ### Added
 
@@ -12,8 +19,7 @@ versions follow semantic versioning.
 - Independent raw/normalized treatment and wet/dry water-basis settings.
 - GUI controls, CLI/config support, composition QC, and full reconstruction
   provenance for the mole-fraction workflow.
-- PyPI Trusted Publishing release workflow preparation; no publication has been
-  performed.
+- PyPI Trusted Publishing release workflow with clean-wheel and GUI validation.
 
 ## [0.1.0] - 2026-08-23
 
