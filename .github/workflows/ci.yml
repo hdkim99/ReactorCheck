@@ -25,9 +25,9 @@ jobs:
     timeout-minutes: 60
     env:
       PIP_NO_CACHE_DIR: "1"
-      REACTORCHECK_CI_VENV: ${{ runner.temp }}/reactorcheck-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      REACTORCHECK_WHEEL_VENV: ${{ runner.temp }}/reactorcheck-wheel-${{ github.run_id }}-${{ github.run_attempt }}
-      REACTORCHECK_CI_OUTPUT: ${{ runner.temp }}/reactorcheck-output-${{ github.run_id }}-${{ github.run_attempt }}
+      REACTORCHECK_CI_VENV: reactorcheck-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      REACTORCHECK_WHEEL_VENV: reactorcheck-wheel-${{ github.run_id }}-${{ github.run_attempt }}
+      REACTORCHECK_CI_OUTPUT: reactorcheck-output-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -45,36 +45,36 @@ jobs:
           sudo apt-get install -y python3-tk xvfb
       - name: Create isolated environments
         run: |
-          python -m venv "$REACTORCHECK_CI_VENV"
-          python -m venv "$REACTORCHECK_WHEEL_VENV"
-          mkdir -p "$REACTORCHECK_CI_OUTPUT"
+          python -m venv "$RUNNER_TEMP/$REACTORCHECK_CI_VENV"
+          python -m venv "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV"
+          mkdir -p "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT"
       - name: Install project in the isolated environment
         run: |
-          "$REACTORCHECK_CI_VENV/bin/python" -m pip install --upgrade pip
-          "$REACTORCHECK_CI_VENV/bin/python" -m pip install -e ".[dev]"
-          "$REACTORCHECK_CI_VENV/bin/python" -m pip check
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m pip install -e ".[dev]"
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m pip check
       - name: Check formatting
         run: >-
-          "$REACTORCHECK_CI_VENV/bin/python" -m ruff format --check .
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m ruff format --check .
       - name: Lint
         run: >-
-          "$REACTORCHECK_CI_VENV/bin/python" -m ruff check .
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m ruff check .
       - name: Type check
         run: >-
-          "$REACTORCHECK_CI_VENV/bin/python" -m mypy src
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m mypy src
       - name: Unit, integration, and scientific tests
         run: >-
-          "$REACTORCHECK_CI_VENV/bin/python" -m pytest
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m pytest
       - name: Build and validate distributions
         run: |
-          "$REACTORCHECK_CI_VENV/bin/python" -m build
-          "$REACTORCHECK_CI_VENV/bin/python" -m twine check dist/*
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m build
+          "$RUNNER_TEMP/$REACTORCHECK_CI_VENV/bin/python" -m twine check dist/*
       - name: Verify clean wheel on ARM64
         run: |
-          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install --upgrade pip
-          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install dist/*.whl
-          "$REACTORCHECK_WHEEL_VENV/bin/python" -m pip check
-          "$REACTORCHECK_WHEEL_VENV/bin/python" - <<'PY'
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/python" -m pip install dist/*.whl
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/python" -m pip check
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/python" - <<'PY'
           import importlib.metadata
           import platform
           import reactorcheck
@@ -86,23 +86,23 @@ jobs:
           PY
       - name: Exercise installed CLI and example workflow
         run: |
-          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --help
-          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --version
-          "$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" analyze \
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --help
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" --version
+          "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/reactorcheck" analyze \
             examples/synthetic_composition.csv \
             --config examples/synthetic_composition_config.json \
-            --output "$REACTORCHECK_CI_OUTPUT/installed.xlsx" \
-            --plot "$REACTORCHECK_CI_OUTPUT/installed.png"
-          test -s "$REACTORCHECK_CI_OUTPUT/installed.xlsx"
-          test -s "$REACTORCHECK_CI_OUTPUT/installed.png"
+            --output "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/installed.xlsx" \
+            --plot "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/installed.png"
+          test -s "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/installed.xlsx"
+          test -s "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/installed.png"
       - name: Exercise installed GUI wiring
         run: |
-          xvfb-run -a "$REACTORCHECK_WHEEL_VENV/bin/python" \
+          xvfb-run -a "$RUNNER_TEMP/$REACTORCHECK_WHEEL_VENV/bin/python" \
             tests/gui_widget_smoke.py \
             examples/synthetic_composition.csv \
             examples/synthetic_composition_config.json \
-            "$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
-          test -s "$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
+            "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
+          test -s "$RUNNER_TEMP/$REACTORCHECK_CI_OUTPUT/gui-wired.xlsx"
       - name: Remove isolated environments and generated files
         if: always()
         run: |
@@ -118,7 +118,7 @@ jobs:
               "REACTORCHECK_WHEEL_VENV",
               "REACTORCHECK_CI_OUTPUT",
           ):
-              target = Path(os.environ[variable]).resolve()
+              target = (runner_temp / os.environ[variable]).resolve()
               if runner_temp not in target.parents:
                   raise RuntimeError(f"Refusing to clean outside runner temp: {target}")
               shutil.rmtree(target, ignore_errors=True)
