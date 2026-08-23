@@ -59,6 +59,7 @@ Homepage = "https://github.com/hdkim99/ReactorCheck"
 Repository = "https://github.com/hdkim99/ReactorCheck"
 Issues = "https://github.com/hdkim99/ReactorCheck/issues"
 Documentation = "https://github.com/hdkim99/ReactorCheck#readme"
+Releases = "https://github.com/hdkim99/ReactorCheck/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/reactorcheck"]
