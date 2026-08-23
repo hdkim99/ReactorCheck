@@ -7,6 +7,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, cast
 
+from reactorcheck import __version__
 from reactorcheck.gui_controller import GUIController
 from reactorcheck.io import (
     load_config,
@@ -552,7 +553,7 @@ class ReactorCheckApp(ttk.Frame):
 def main() -> None:
     """Launch the desktop application."""
     root = tk.Tk()
-    root.title("ReactorCheck 0.1.0")
+    root.title(f"ReactorCheck {__version__}")
     root.geometry("1100x850")
     ReactorCheckApp(root)
     root.mainloop()

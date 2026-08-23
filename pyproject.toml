@@ -4,13 +4,20 @@ build-backend = "hatchling.build"
 
 [project]
 name = "reactorcheck"
-version = "0.1.0"
-description = "Validate and analyze catalytic reactor experiments without spreadsheets."
+version = "0.2.0"
+description = "Unit-aware catalytic reactor analysis from compositions or measured species flows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
-authors = [{name = "ReactorCheck contributors"}]
-keywords = ["catalysis", "reactor", "chemical-engineering", "scientific-software"]
+authors = [{name = "Hyun Dong Kim"}]
+keywords = [
+  "catalysis",
+  "reactor",
+  "chemical-engineering",
+  "mole-fraction",
+  "internal-standard",
+  "scientific-software",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
@@ -19,7 +26,9 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Chemistry",
+  "Typing :: Typed",
 ]
 dependencies = [
   "matplotlib>=3.7",
@@ -38,6 +47,7 @@ dev = [
   "pytest-cov>=5.0",
   "ruff>=0.5",
   "types-openpyxl>=3.1",
+  "twine>=5.1",
 ]
 
 [project.scripts]
@@ -46,7 +56,9 @@ reactorcheck-gui = "reactorcheck.gui:main"
 
 [project.urls]
 Homepage = "https://github.com/hdkim99/ReactorCheck"
+Repository = "https://github.com/hdkim99/ReactorCheck"
 Issues = "https://github.com/hdkim99/ReactorCheck/issues"
+Documentation = "https://github.com/hdkim99/ReactorCheck#readme"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/reactorcheck"]
