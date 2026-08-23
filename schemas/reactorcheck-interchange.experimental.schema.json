@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hdkim99/ReactorCheck/blob/main/schemas/reactorcheck-interchange.experimental.schema.json",
+  "title": "ReactorCheck experimental interchange",
+  "description": "Draft metadata envelope for tabular ReactorCheck exports; no stability guarantee.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "workflow",
+    "experiment_time_column",
+    "reference_reactant",
+    "channels"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.2-draft"
+    },
+    "workflow": {
+      "enum": ["direct_flow", "internal_standard"]
+    },
+    "experiment_time_column": {
+      "const": "experiment_time_s"
+    },
+    "reference_reactant": {
+      "type": "string",
+      "minLength": 1
+    },
+    "composition": {
+      "type": ["object", "null"],
+      "required": [
+        "normalization",
+        "water_basis",
+        "internal_standard",
+        "internal_standard_feed",
+        "confirmed_nonreactive",
+        "assumption"
+      ],
+      "properties": {
+        "normalization": {
+          "enum": ["raw_measured", "normalized"]
+        },
+        "water_basis": {
+          "enum": ["wet", "dry"]
+        },
+        "internal_standard": {
+          "type": "string",
+          "minLength": 1
+        },
+        "internal_standard_feed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confirmed_nonreactive": {
+          "const": true
+        },
+        "assumption": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["species", "formula", "source_column", "source_unit"],
+        "properties": {
+          "species": {"type": "string"},
+          "formula": {"type": "string"},
+          "source_column": {"type": "string"},
+          "source_unit": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

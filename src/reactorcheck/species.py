@@ -21,6 +21,7 @@ ATOMIC_WEIGHTS: Mapping[str, float] = {
     "P": 30.973762,
     "S": 32.06,
     "Cl": 35.45,
+    "Ar": 39.948,
     "K": 39.0983,
     "Ca": 40.078,
     "Fe": 55.845,
@@ -45,6 +46,7 @@ COMMON_SPECIES: Mapping[str, str] = {
     "NO": "NO",
     "NO2": "NO2",
     "N2O": "N2O",
+    "AR": "Ar",
 }
 
 

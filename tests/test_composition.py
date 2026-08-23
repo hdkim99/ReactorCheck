@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -158,6 +159,15 @@ def test_composition_example_matches_hand_calculation() -> None:
     assert "nonreactive" in provenance["internal_standard_assumption"]
 
 
+@pytest.mark.integration
+def test_bundled_composition_xlsx_matches_csv() -> None:
+    root = Path(__file__).parents[1]
+    config = load_config(root / "examples" / "synthetic_composition_config.json")
+    csv_result = analyze_file(root / "examples" / "synthetic_composition.csv", config)
+    xlsx_result = analyze_file(root / "examples" / "synthetic_composition.xlsx", config)
+    pd.testing.assert_frame_equal(csv_result.processed, xlsx_result.processed, check_dtype=False)
+
+
 @pytest.mark.scientific
 def test_raw_sum_qc_does_not_change_ratio_reconstruction() -> None:
     frame = pd.DataFrame(
@@ -239,4 +249,12 @@ def test_ambiguous_single_basis_config_is_rejected() -> None:
         },
     }
     with pytest.raises(InputError, match=r"Ambiguous composition\.basis"):
+        config_from_dict(raw)
+
+
+def test_non_boolean_confirmation_is_rejected() -> None:
+    root = Path(__file__).parents[1]
+    raw = json.loads((root / "examples" / "synthetic_composition_config.json").read_text())
+    raw["composition"]["confirmed_nonreactive"] = "yes"
+    with pytest.raises(InputError, match="must be a JSON boolean"):
         config_from_dict(raw)

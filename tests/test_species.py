@@ -13,6 +13,7 @@ from reactorcheck.species import FormulaError, infer_species, parse_formula
         ("CH3OH", {"C": 1, "H": 4, "O": 1}),
         ("C2H6", {"C": 2, "H": 6}),
         ("Ca(OH)2", {"Ca": 1, "O": 2, "H": 2}),
+        ("Ar", {"Ar": 1}),
     ],
 )
 def test_formula_composition(formula: str, expected: dict[str, int]) -> None:

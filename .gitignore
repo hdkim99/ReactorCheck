@@ -10,6 +10,6 @@ build/
 dist/
 htmlcov/
 *.xlsx
+!examples/synthetic_composition.xlsx
 *.png
 !docs/assets/*.png
-
