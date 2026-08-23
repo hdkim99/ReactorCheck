@@ -24,7 +24,9 @@ def main(data_path: Path, config_path: Path, output_path: Path) -> None:
     if controller.result is None:
         raise AssertionError("GUI Analyze did not produce a result")
     conversion = float(controller.result.processed["conversion_CO_fraction"].iloc[0])
-    if abs(conversion - 0.5) > 1e-12:
+    # Percent -> fraction -> internal-standard ratio involves ordinary binary
+    # floating conversion. This matches the 1e-9 scientific regression tolerance.
+    if abs(conversion - 0.5) > 1e-9:
         raise AssertionError(f"Unexpected GUI/core conversion: {conversion}")
     if not app.summary_tree.get_children():
         raise AssertionError("GUI result table was not populated")
