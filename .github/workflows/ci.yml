@@ -39,10 +39,29 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
-      - name: Install Tk and Xvfb runtime
+      - name: Configure shared Tk and Xvfb runtime
+        env:
+          REACTORCHECK_GUI_RUNTIME: /opt/catalysttwin-actions/shared-gui-runtime
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-tk xvfb
+          set -eu
+          runtime="$REACTORCHECK_GUI_RUNTIME"
+          bin_dir="$runtime/usr/bin"
+          lib_dir="$runtime/usr/lib/aarch64-linux-gnu"
+          tk_dir="$runtime/usr/share/tcltk/tk8.6"
+          test -d "$bin_dir"
+          test -d "$lib_dir"
+          test -d "$tk_dir"
+          export PATH="$bin_dir:$PATH"
+          export LD_LIBRARY_PATH="$lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export TK_LIBRARY="$tk_dir"
+          printf '%s\n' "$bin_dir" >> "$GITHUB_PATH"
+          {
+            printf 'LD_LIBRARY_PATH=%s\n' "$LD_LIBRARY_PATH"
+            printf 'TK_LIBRARY=%s\n' "$TK_LIBRARY"
+          } >> "$GITHUB_ENV"
+          command -v Xvfb
+          command -v xvfb-run
+          python -c 'import tkinter; print(tkinter.TkVersion)'
       - name: Create isolated environments
         run: |
           python -m venv "$RUNNER_TEMP/$REACTORCHECK_CI_VENV"

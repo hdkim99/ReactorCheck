@@ -26,6 +26,13 @@ def test_general_ci_targets_dgx_and_blocks_fork_pull_requests() -> None:
     assert "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09" in workflow
     assert "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1" in workflow
     assert 'machine in {"aarch64", "arm64"}' in workflow
+    assert "/opt/catalysttwin-actions/shared-gui-runtime" in workflow
+    assert "usr/lib/aarch64-linux-gnu" in workflow
+    assert "usr/share/tcltk/tk8.6" in workflow
+    assert "command -v Xvfb" in workflow
+    assert "command -v xvfb-run" in workflow
+    assert "python -c 'import tkinter" in workflow
+    assert "sudo apt-get" not in workflow
     assert "xvfb-run" in workflow
 
 
