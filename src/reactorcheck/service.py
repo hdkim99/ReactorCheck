@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -11,8 +12,13 @@ import pint
 from numpy.typing import NDArray
 
 from reactorcheck import calculations
+from reactorcheck.composition import (
+    CompositionError,
+    CompositionResolution,
+    reconstruct_with_internal_standard,
+)
 from reactorcheck.io import config_to_dict, read_table
-from reactorcheck.models import AnalysisConfig, AnalysisResult, QCIssue
+from reactorcheck.models import AnalysisConfig, AnalysisResult, ChannelMapping, QCIssue
 from reactorcheck.qc import input_issues, metric_issues
 from reactorcheck.steady import detect_steady_state
 from reactorcheck.units import (
@@ -28,6 +34,15 @@ from reactorcheck.units import (
 
 class AnalysisError(ValueError):
     """Raised when data/configuration cannot produce a valid analysis."""
+
+
+@dataclass(frozen=True)
+class FlowResolution:
+    """Normalized inlet/outlet flows plus optional composition audit data."""
+
+    inlet: dict[str, NDArray[np.float64]]
+    outlet: dict[str, NDArray[np.float64]]
+    composition: CompositionResolution | None = None
 
 
 def _require_numeric(frame: pd.DataFrame, columns: set[str]) -> None:
@@ -61,12 +76,41 @@ def _standard_state(
         raise AnalysisError("Standard temperature/pressure have incompatible units") from exc
 
 
-def _flow_arrays(
-    frame: pd.DataFrame, config: AnalysisConfig
-) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+def _inlet_array(
+    frame: pd.DataFrame,
+    channel: ChannelMapping,
+    temperature: pint.Quantity[Any],
+    pressure: pint.Quantity[Any],
+) -> NDArray[np.float64]:
+    """Resolve a channel's constant/column inlet flow to mol/h."""
+    try:
+        if channel.inlet_column is not None and channel.inlet_unit is not None:
+            return to_molar_flow(
+                frame[channel.inlet_column].to_numpy(),
+                channel.inlet_unit,
+                standard_temperature=temperature,
+                standard_pressure=pressure,
+            )
+        if channel.inlet is not None:
+            parsed = quantity(channel.inlet)
+            scalar = to_molar_flow(
+                [parsed.magnitude],
+                str(parsed.units),
+                standard_temperature=temperature,
+                standard_pressure=pressure,
+            )[0]
+            return np.full(len(frame), scalar, dtype=float)
+        if channel.role == "reactant":
+            raise AnalysisError(f"Reactant {channel.species.name} requires inlet or inlet_column")
+        return np.zeros(len(frame), dtype=float)
+    except UnitError as exc:
+        raise AnalysisError(str(exc)) from exc
+
+
+def _direct_flow_resolution(frame: pd.DataFrame, config: AnalysisConfig) -> FlowResolution:
     temperature, pressure = _standard_state(config)
-    inlet: dict[str, np.ndarray] = {}
-    outlet: dict[str, np.ndarray] = {}
+    inlet: dict[str, NDArray[np.float64]] = {}
+    outlet: dict[str, NDArray[np.float64]] = {}
     for channel in config.channels:
         try:
             outlet[channel.species.name] = to_molar_flow(
@@ -75,31 +119,90 @@ def _flow_arrays(
                 standard_temperature=temperature,
                 standard_pressure=pressure,
             )
-            if channel.inlet_column is not None and channel.inlet_unit is not None:
-                inlet[channel.species.name] = to_molar_flow(
-                    frame[channel.inlet_column].to_numpy(),
-                    channel.inlet_unit,
-                    standard_temperature=temperature,
-                    standard_pressure=pressure,
-                )
-            elif channel.inlet is not None:
-                parsed = quantity(channel.inlet)
-                scalar = to_molar_flow(
-                    [parsed.magnitude],
-                    str(parsed.units),
-                    standard_temperature=temperature,
-                    standard_pressure=pressure,
-                )[0]
-                inlet[channel.species.name] = np.full(len(frame), scalar)
-            elif channel.role == "reactant":
-                raise AnalysisError(
-                    f"Reactant {channel.species.name} requires inlet or inlet_column"
-                )
-            else:
-                inlet[channel.species.name] = np.zeros(len(frame))
         except UnitError as exc:
             raise AnalysisError(str(exc)) from exc
-    return inlet, outlet
+        inlet[channel.species.name] = _inlet_array(frame, channel, temperature, pressure)
+    return FlowResolution(inlet=inlet, outlet=outlet)
+
+
+def _composition_flow_resolution(frame: pd.DataFrame, config: AnalysisConfig) -> FlowResolution:
+    settings = config.composition
+    if settings is None:
+        raise AnalysisError("Composition settings are required")
+    temperature, pressure = _standard_state(config)
+    try:
+        standard_quantity = quantity(settings.internal_standard_feed)
+        standard_feed_mol_h = float(
+            to_molar_flow(
+                [standard_quantity.magnitude],
+                str(standard_quantity.units),
+                standard_temperature=temperature,
+                standard_pressure=pressure,
+            )[0]
+        )
+        measurements = {
+            channel.species.name: frame[channel.column].to_numpy(dtype=float)
+            for channel in config.channels
+        }
+        units = {channel.species.name: channel.unit for channel in config.channels}
+        resolved = reconstruct_with_internal_standard(
+            measurements,
+            units,
+            settings.normalization,
+            settings.internal_standard,
+            standard_feed_mol_h,
+        )
+    except (CompositionError, UnitError) as exc:
+        raise AnalysisError(str(exc)) from exc
+
+    inlet: dict[str, NDArray[np.float64]] = {}
+    for channel in config.channels:
+        name = channel.species.name
+        if name == settings.internal_standard:
+            inlet[name] = np.full(len(frame), standard_feed_mol_h, dtype=float)
+        else:
+            inlet[name] = _inlet_array(frame, channel, temperature, pressure)
+    return FlowResolution(inlet=inlet, outlet=resolved.outlet_mol_h, composition=resolved)
+
+
+def _resolve_flows(frame: pd.DataFrame, config: AnalysisConfig) -> FlowResolution:
+    """Dispatch direct-flow or explicit internal-standard reconstruction."""
+    if config.composition is None:
+        return _direct_flow_resolution(frame, config)
+    return _composition_flow_resolution(frame, config)
+
+
+def _composition_issues(resolved: CompositionResolution, tolerance: float) -> list[QCIssue]:
+    """Report raw composition closure without changing reconstructed values."""
+    issues: list[QCIssue] = []
+    finite = np.isfinite(resolved.raw_sum)
+    deviating = finite & (np.abs(resolved.raw_sum - 1.0) > tolerance)
+    if deviating.any():
+        rows = tuple(int(value) for value in np.flatnonzero(deviating)[:100])
+        maximum = float(np.max(np.abs(resolved.raw_sum[deviating] - 1.0)))
+        issues.append(
+            QCIssue(
+                "composition_sum_deviation",
+                "warning",
+                f"Raw mapped composition sum differs from unity by more than {tolerance:g}",
+                rows,
+                maximum,
+            )
+        )
+    above_one_rows = np.zeros_like(resolved.raw_sum, dtype=bool)
+    for values in resolved.raw_fractions.values():
+        above_one_rows |= values > 1.0
+    if above_one_rows.any():
+        rows = tuple(int(value) for value in np.flatnonzero(above_one_rows)[:100])
+        issues.append(
+            QCIssue(
+                "composition_fraction_above_one",
+                "error",
+                "At least one raw mole fraction exceeds unity after unit conversion",
+                rows,
+            )
+        )
+    return issues
 
 
 def _add_summary(
@@ -144,7 +247,19 @@ def analyze_frame(
 
     processed = frame.copy(deep=True)
     processed["experiment_time_s"] = _time_seconds(frame[config.time_column], config.time_unit)
-    inlet, outlet = _flow_arrays(frame, config)
+    flow_resolution = _resolve_flows(frame, config)
+    inlet = flow_resolution.inlet
+    outlet = flow_resolution.outlet
+    if flow_resolution.composition is not None:
+        composition = flow_resolution.composition
+        processed["composition_raw_sum_fraction"] = composition.raw_sum
+        processed["composition_used_sum_fraction"] = composition.used_sum
+        for name in composition.raw_fractions:
+            processed[f"composition_raw_{name}_fraction"] = composition.raw_fractions[name]
+            processed[f"composition_used_{name}_fraction"] = composition.used_fractions[name]
+        if config.composition is None:
+            raise AnalysisError("Composition settings unexpectedly missing")
+        issues.extend(_composition_issues(composition, config.composition.sum_tolerance_fraction))
     species = {channel.species.name: channel.species for channel in config.channels}
     roles = {channel.species.name: channel.role for channel in config.channels}
     for name in species:
@@ -322,6 +437,8 @@ def analyze_frame(
             }
         )
 
+    composition_settings = config.composition
+    workflow = "direct_flow" if composition_settings is None else "internal_standard"
     provenance = pd.DataFrame(
         [
             {
@@ -332,9 +449,51 @@ def analyze_frame(
                 "species_formula": channel.species.formula,
                 "inlet_source": channel.inlet_column
                 or channel.inlet
+                or (
+                    composition_settings.internal_standard_feed
+                    if composition_settings is not None
+                    and channel.species.name == composition_settings.internal_standard
+                    else None
+                )
                 or "zero (product/inert default)",
                 "standard_temperature": config.standard_temperature,
                 "standard_pressure": config.standard_pressure,
+                "workflow": workflow,
+                "reference_reactant": config.reference_reactant,
+                "composition_normalization": (
+                    composition_settings.normalization if composition_settings is not None else None
+                ),
+                "water_basis": (
+                    composition_settings.water_basis if composition_settings is not None else None
+                ),
+                "normalization_applied": (
+                    flow_resolution.composition.normalization_applied
+                    if flow_resolution.composition is not None
+                    else False
+                ),
+                "internal_standard": (
+                    composition_settings.internal_standard
+                    if composition_settings is not None
+                    else None
+                ),
+                "internal_standard_feed": (
+                    composition_settings.internal_standard_feed
+                    if composition_settings is not None
+                    else None
+                ),
+                "reconstruction_method": (
+                    "F_out_i = y_i / y_standard * F_standard_feed"
+                    if composition_settings is not None
+                    else "direct measured outlet flow"
+                ),
+                "composition_unit_conversion": (
+                    f"{channel.unit} to mole fraction"
+                    if composition_settings is not None
+                    else f"{channel.unit} to mol/h"
+                ),
+                "internal_standard_assumption": (
+                    composition_settings.assumption if composition_settings is not None else None
+                ),
             }
             for channel in config.channels
         ]

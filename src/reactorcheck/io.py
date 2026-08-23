@@ -13,6 +13,7 @@ from reactorcheck.models import (
     AnalysisConfig,
     AnalysisResult,
     ChannelMapping,
+    CompositionSettings,
     Species,
     SteadyStateSettings,
 )
@@ -83,6 +84,28 @@ def config_from_dict(raw: dict[str, Any]) -> AnalysisConfig:
             if steady_raw.get("manual_end") is not None
             else None,
         )
+        composition_raw = raw.get("composition")
+        composition = None
+        if composition_raw is not None:
+            if not isinstance(composition_raw, dict):
+                raise ValueError("composition must be an object or null")
+            if "basis" in composition_raw:
+                raise ValueError(
+                    "Ambiguous composition.basis is unsupported; set both "
+                    "composition.normalization and composition.water_basis"
+                )
+            confirmed = composition_raw["confirmed_nonreactive"]
+            if not isinstance(confirmed, bool):
+                raise ValueError("confirmed_nonreactive must be a JSON boolean")
+            composition = CompositionSettings(
+                normalization=cast(Any, str(composition_raw["normalization"])),
+                water_basis=cast(Any, str(composition_raw["water_basis"])),
+                internal_standard=str(composition_raw["internal_standard"]),
+                internal_standard_feed=str(composition_raw["internal_standard_feed"]),
+                confirmed_nonreactive=confirmed,
+                assumption=str(composition_raw["assumption"]),
+                sum_tolerance_fraction=float(composition_raw.get("sum_tolerance_fraction", 0.02)),
+            )
         return AnalysisConfig(
             time_column=str(raw["time_column"]),
             time_unit=str(raw["time_unit"]),
@@ -99,6 +122,7 @@ def config_from_dict(raw: dict[str, Any]) -> AnalysisConfig:
             else None,
             mass_feed=str(raw["mass_feed"]) if raw.get("mass_feed") is not None else None,
             sty_product=str(raw["sty_product"]) if raw.get("sty_product") is not None else None,
+            composition=composition,
             steady_state=steady,
             balance_tolerance_percent=float(raw.get("balance_tolerance_percent", 5.0)),
             physical_tolerance=float(raw.get("physical_tolerance", 1e-9)),
@@ -133,6 +157,7 @@ def config_to_dict(config: AnalysisConfig) -> dict[str, Any]:
         "volumetric_feed": config.volumetric_feed,
         "mass_feed": config.mass_feed,
         "sty_product": config.sty_product,
+        "composition": asdict(config.composition) if config.composition is not None else None,
         "steady_state": asdict(config.steady_state),
         "balance_tolerance_percent": config.balance_tolerance_percent,
         "physical_tolerance": config.physical_tolerance,
