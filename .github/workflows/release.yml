@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,8 +25,10 @@ jobs:
           python -m venv /tmp/reactorcheck-release-venv
           /tmp/reactorcheck-release-venv/bin/python -m pip install dist/*.whl
       - name: Installed import, CLI, and example smoke
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          /tmp/reactorcheck-release-venv/bin/python -c "import os, reactorcheck; expected=os.environ['GITHUB_REF_NAME'].removeprefix('v'); assert reactorcheck.__version__ == expected, (reactorcheck.__version__, expected)"
+          /tmp/reactorcheck-release-venv/bin/python -c "import os, reactorcheck; expected=os.environ['RELEASE_TAG'].removeprefix('v'); assert reactorcheck.__version__ == expected, (reactorcheck.__version__, expected)"
           /tmp/reactorcheck-release-venv/bin/reactorcheck --help
           /tmp/reactorcheck-release-venv/bin/reactorcheck analyze \
             examples/synthetic_composition.csv \
