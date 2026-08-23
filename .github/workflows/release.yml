@@ -24,6 +24,7 @@ jobs:
         run: |
           python -m venv /tmp/reactorcheck-release-venv
           /tmp/reactorcheck-release-venv/bin/python -m pip install dist/*.whl
+          /tmp/reactorcheck-release-venv/bin/python -m pip check
       - name: Installed import, CLI, and example smoke
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}

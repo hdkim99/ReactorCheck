@@ -20,6 +20,7 @@ def test_release_workflow_is_trusted_publishing_only() -> None:
     assert "if: github.event.release.prerelease == false" in workflow
     assert "RELEASE_TAG: ${{ github.event.release.tag_name }}" in workflow
     assert "GITHUB_REF_NAME" not in workflow
+    assert "/tmp/reactorcheck-release-venv/bin/python -m pip check" in workflow
     assert "id-token: write" in workflow
     assert "name: pypi" in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
