@@ -135,6 +135,7 @@ tabular/JSON schemas rather than shared private code.
 ## Development
 
 ```bash
+python -m pip install -e .
 python -m pip install -e ".[dev]"
 ruff format --check .
 ruff check .
