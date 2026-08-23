@@ -16,7 +16,6 @@ from reactorcheck.models import AnalysisConfig, AnalysisResult, QCIssue
 from reactorcheck.qc import input_issues, metric_issues
 from reactorcheck.steady import detect_steady_state
 from reactorcheck.units import (
-    Q_,
     UnitError,
     ensure_mass,
     ensure_mass_flow,
@@ -51,7 +50,9 @@ def _time_seconds(values: pd.Series, unit: str) -> np.ndarray:
         raise AnalysisError(f"Time unit {unit!r} is not a time dimension") from exc
 
 
-def _standard_state(config: AnalysisConfig) -> tuple[Q_, Q_]:
+def _standard_state(
+    config: AnalysisConfig,
+) -> tuple[pint.Quantity[Any], pint.Quantity[Any]]:
     temperature = quantity(config.standard_temperature)
     pressure = quantity(config.standard_pressure)
     try:

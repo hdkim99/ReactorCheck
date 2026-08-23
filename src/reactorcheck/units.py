@@ -6,7 +6,7 @@ standard temperature and pressure. No ambient-condition assumption is hidden.
 
 from __future__ import annotations
 
-from typing import Any, TypeAlias
+from typing import Any
 
 import numpy as np
 import pint
@@ -14,7 +14,6 @@ from numpy.typing import ArrayLike, NDArray
 
 ureg: pint.UnitRegistry[Any] = pint.UnitRegistry(autoconvert_offset_to_baseunit=True)
 ureg.define("sccm = centimeter ** 3 / minute")
-Q_: TypeAlias = pint.Quantity[Any]
 
 STANDARD_TEMPERATURE = 273.15 * ureg.kelvin
 STANDARD_PRESSURE = 1.0 * ureg.atmosphere
@@ -25,10 +24,10 @@ class UnitError(ValueError):
     """Raised when a quantity has an incompatible physical dimension."""
 
 
-def quantity(text: str) -> Q_:
+def quantity(text: str) -> pint.Quantity[Any]:
     """Parse a required value-with-unit string."""
     try:
-        result: Q_ = ureg.Quantity(text)
+        result: pint.Quantity[Any] = ureg.Quantity(text)
     except (pint.PintError, TypeError) as exc:
         raise UnitError(f"Invalid quantity {text!r}: {exc}") from exc
     if result.dimensionless:
@@ -39,8 +38,8 @@ def quantity(text: str) -> Q_:
 def to_molar_flow(
     values: ArrayLike,
     unit: str,
-    standard_temperature: Q_ = STANDARD_TEMPERATURE,
-    standard_pressure: Q_ = STANDARD_PRESSURE,
+    standard_temperature: pint.Quantity[Any] = STANDARD_TEMPERATURE,
+    standard_pressure: pint.Quantity[Any] = STANDARD_PRESSURE,
 ) -> NDArray[np.float64]:
     """Convert molar or standard volumetric gas flow values to mol/h."""
     array = np.asarray(values, dtype=float)
