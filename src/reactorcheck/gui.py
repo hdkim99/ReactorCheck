@@ -16,6 +16,7 @@ from reactorcheck.io import (
 from reactorcheck.models import (
     AnalysisConfig,
     ChannelMapping,
+    CompositionSettings,
     Species,
     SteadyStateSettings,
 )
@@ -50,6 +51,14 @@ class ReactorCheckApp(ttk.Frame):
         self.volumetric_feed = tk.StringVar()
         self.mass_feed = tk.StringVar()
         self.sty_product = tk.StringVar()
+        self.workflow = tk.StringVar(value="direct_flow")
+        self.composition_normalization = tk.StringVar(value="normalized")
+        self.water_basis = tk.StringVar(value="dry")
+        self.internal_standard = tk.StringVar()
+        self.internal_standard_feed = tk.StringVar(value="1 mol/h")
+        self.confirmed_nonreactive = tk.BooleanVar(value=False)
+        self.standard_assumption = tk.StringVar()
+        self.composition_sum_tolerance = tk.StringVar(value="0.02")
         self.map_column = tk.StringVar()
         self.map_species = tk.StringVar()
         self.map_formula = tk.StringVar()
@@ -96,6 +105,62 @@ class ReactorCheckApp(ttk.Frame):
         self.sty_box = cast(
             ttk.Combobox,
             self._field(base, "STY product", self.sty_product, 4, column=2, combo=True),
+        )
+
+        composition = ttk.LabelFrame(setup, text="Outlet workflow and composition basis", padding=6)
+        composition.pack(fill="x", pady=6)
+        workflow_box = cast(
+            ttk.Combobox,
+            self._field(composition, "Workflow", self.workflow, 0, combo=True),
+        )
+        workflow_box.configure(values=("direct_flow", "internal_standard"), state="readonly")
+        normalization_box = cast(
+            ttk.Combobox,
+            self._field(
+                composition,
+                "Normalization",
+                self.composition_normalization,
+                0,
+                column=2,
+                combo=True,
+            ),
+        )
+        normalization_box.configure(values=("raw_measured", "normalized"), state="readonly")
+        water_box = cast(
+            ttk.Combobox,
+            self._field(composition, "Water basis", self.water_basis, 1, combo=True),
+        )
+        water_box.configure(values=("wet", "dry"), state="readonly")
+        self.internal_standard_box = cast(
+            ttk.Combobox,
+            self._field(
+                composition,
+                "Internal standard",
+                self.internal_standard,
+                1,
+                column=2,
+                combo=True,
+            ),
+        )
+        self._field(composition, "Standard feed", self.internal_standard_feed, 2)
+        self._field(
+            composition,
+            "Raw sum tolerance",
+            self.composition_sum_tolerance,
+            2,
+            column=2,
+        )
+        ttk.Checkbutton(
+            composition,
+            text="I confirm the standard is nonreactive",
+            variable=self.confirmed_nonreactive,
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=3, pady=2)
+        self._field(
+            composition,
+            "Assumption text",
+            self.standard_assumption,
+            3,
+            column=2,
         )
 
         mapping = ttk.LabelFrame(setup, text="Species column mapping", padding=6)
@@ -298,8 +363,10 @@ class ReactorCheckApp(ttk.Frame):
             )
         reactants = [item["species"] for item in self.mappings if item["role"] == "reactant"]
         products = [item["species"] for item in self.mappings if item["role"] == "product"]
+        inerts = [item["species"] for item in self.mappings if item["role"] == "inert"]
         self.reference_box.configure(values=reactants)
         self.sty_box.configure(values=("", *products))
+        self.internal_standard_box.configure(values=inerts)
         if len(reactants) == 1:
             self.reference.set(reactants[0])
 
@@ -338,6 +405,17 @@ class ReactorCheckApp(ttk.Frame):
             manual_start=float(manual_start) if manual_start else None,
             manual_end=float(manual_end) if manual_end else None,
         )
+        composition = None
+        if self.workflow.get() == "internal_standard":
+            composition = CompositionSettings(
+                normalization=self.composition_normalization.get(),  # type: ignore[arg-type]
+                water_basis=self.water_basis.get(),  # type: ignore[arg-type]
+                internal_standard=self.internal_standard.get().strip(),
+                internal_standard_feed=self.internal_standard_feed.get().strip(),
+                confirmed_nonreactive=self.confirmed_nonreactive.get(),
+                assumption=self.standard_assumption.get().strip(),
+                sum_tolerance_fraction=float(self.composition_sum_tolerance.get()),
+            )
         return AnalysisConfig(
             time_column=self.time_column.get().strip(),
             time_unit=self.time_unit.get().strip(),
@@ -350,6 +428,7 @@ class ReactorCheckApp(ttk.Frame):
             volumetric_feed=self._optional(self.volumetric_feed.get()),
             mass_feed=self._optional(self.mass_feed.get()),
             sty_product=self._optional(self.sty_product.get()),
+            composition=composition,
             steady_state=steady,
         )
 
@@ -364,6 +443,24 @@ class ReactorCheckApp(ttk.Frame):
         self.volumetric_feed.set(config.volumetric_feed or "")
         self.mass_feed.set(config.mass_feed or "")
         self.sty_product.set(config.sty_product or "")
+        if config.composition is None:
+            self.workflow.set("direct_flow")
+            self.composition_normalization.set("normalized")
+            self.water_basis.set("dry")
+            self.internal_standard.set("")
+            self.internal_standard_feed.set("1 mol/h")
+            self.confirmed_nonreactive.set(False)
+            self.standard_assumption.set("")
+            self.composition_sum_tolerance.set("0.02")
+        else:
+            self.workflow.set("internal_standard")
+            self.composition_normalization.set(config.composition.normalization)
+            self.water_basis.set(config.composition.water_basis)
+            self.internal_standard.set(config.composition.internal_standard)
+            self.internal_standard_feed.set(config.composition.internal_standard_feed)
+            self.confirmed_nonreactive.set(config.composition.confirmed_nonreactive)
+            self.standard_assumption.set(config.composition.assumption)
+            self.composition_sum_tolerance.set(str(config.composition.sum_tolerance_fraction))
         steady = config.steady_state
         self.steady_variables.set(", ".join(steady.variables))
         self.minimum_window.set(str(steady.minimum_window))

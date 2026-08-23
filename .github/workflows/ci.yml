@@ -67,6 +67,6 @@ jobs:
       - name: GUI widget/backend wiring smoke
         run: >-
           xvfb-run -a python tests/gui_widget_smoke.py
-          examples/synthetic_reactor.csv
-          examples/synthetic_config.json
+          examples/synthetic_composition.csv
+          examples/synthetic_composition_config.json
           /tmp/gui-wired.xlsx

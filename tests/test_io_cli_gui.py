@@ -9,7 +9,7 @@ import pytest
 
 from reactorcheck.cli import main
 from reactorcheck.gui_controller import GUIController
-from reactorcheck.io import export_csv_bundle, export_excel, read_table
+from reactorcheck.io import export_csv_bundle, export_excel, load_config, read_table
 from reactorcheck.models import AnalysisConfig
 from reactorcheck.service import analyze_file
 
@@ -59,6 +59,28 @@ def test_cli_smoke(tmp_path: Path, example_csv: Path) -> None:
     assert plot.stat().st_size > 1000
 
 
+@pytest.mark.integration
+def test_composition_cli_smoke(tmp_path: Path, example_csv: Path) -> None:
+    data = example_csv.parent / "synthetic_composition.csv"
+    config = example_csv.parent / "synthetic_composition_config.json"
+    output = tmp_path / "composition-cli.xlsx"
+    assert (
+        main(
+            [
+                "analyze",
+                str(data),
+                "-c",
+                str(config),
+                "-o",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    processed = pd.read_excel(output, sheet_name="processed")
+    assert processed["flow_out_CO_mol_h"].iloc[0] == pytest.approx(0.5)
+
+
 def test_cli_rejects_missing_config(tmp_path: Path, example_csv: Path, capsys) -> None:
     code = main(
         [
@@ -89,3 +111,18 @@ def test_gui_controller_calls_real_service_and_export(
     plot = tmp_path / "gui.png"
     controller.save_plot(plot)
     assert plot.stat().st_size > 1000
+
+
+@pytest.mark.gui
+@pytest.mark.integration
+def test_gui_controller_composition_workflow(tmp_path: Path, example_csv: Path) -> None:
+    data = example_csv.parent / "synthetic_composition.csv"
+    config = example_csv.parent / "synthetic_composition_config.json"
+    controller = GUIController()
+    controller.load(data)
+    result = controller.analyze(load_config(config))
+    assert result.processed["flow_out_CH3OH_mol_h"].iloc[0] == pytest.approx(0.5)
+    output = tmp_path / "gui-composition.xlsx"
+    controller.export(output)
+    provenance = pd.read_excel(output, sheet_name="provenance")
+    assert provenance["workflow"].eq("internal_standard").all()
