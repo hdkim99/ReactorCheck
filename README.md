@@ -3,6 +3,7 @@
 **Turn reactor compositions or measured species flows into auditable catalytic metrics and QC.**
 
 [![CI](https://github.com/hdkim99/ReactorCheck/actions/workflows/ci.yml/badge.svg)](https://github.com/hdkim99/ReactorCheck/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/reactorcheck)](https://pypi.org/project/reactorcheck/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/hdkim99/ReactorCheck/blob/main/LICENSE)
 
@@ -29,21 +30,23 @@ Python 3.10 or newer is required. Tk is needed only for the desktop GUI.
 python -m pip install reactorcheck
 ```
 
-For the bundled example datasets, unreleased development code, or contributions,
-clone the public source and use an editable install instead:
+## 30-second example
 
-## 30-second bundled example (source install)
+Download the two public-safe example inputs and run them with the PyPI installation:
 
 ```bash
-git clone https://github.com/hdkim99/ReactorCheck.git
-cd ReactorCheck
-python -m pip install -e .
-reactorcheck analyze examples/synthetic_composition.csv \
-  --config examples/synthetic_composition_config.json \
+mkdir reactorcheck-demo && cd reactorcheck-demo
+curl -LO https://raw.githubusercontent.com/hdkim99/ReactorCheck/main/examples/synthetic_composition.csv
+curl -LO https://raw.githubusercontent.com/hdkim99/ReactorCheck/main/examples/synthetic_composition_config.json
+reactorcheck analyze synthetic_composition.csv \
+  --config synthetic_composition_config.json \
   --output reactorcheck-composition.xlsx \
   --plot reactorcheck-composition.png
 reactorcheck-gui
 ```
+
+If you are already in a source checkout, use the paths under `examples/` shown in
+the repository instead. Clone the repository and install `-e .` only for development.
 
 The synthetic CO hydrogenation example is available as both
 [`CSV`](https://github.com/hdkim99/ReactorCheck/blob/main/examples/synthetic_composition.csv) and
