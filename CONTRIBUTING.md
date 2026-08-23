@@ -11,3 +11,6 @@ Use small Conventional Commit-style changes such as `feat:`, `fix:`, `test:`, an
 `docs:`. Synthetic data must be redistributable. Never commit private experimental
 data, credentials, or personally identifying metadata.
 
+After changing the public composition example, run
+`python scripts/generate_example_assets.py` and inspect both PNG files before
+committing the regenerated XLSX/visual assets.

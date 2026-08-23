@@ -15,3 +15,6 @@ data plus JSON settings:
 Future interoperability should version a public schema rather than introduce a
 shared private Python package.
 
+An explicitly experimental, non-stable schema candidate is provided at
+[`schemas/reactorcheck-interchange.experimental.schema.json`](../schemas/reactorcheck-interchange.experimental.schema.json).
+Its identifier is `0.2-draft`; it is not a 1.0 compatibility promise.

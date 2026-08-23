@@ -4,6 +4,36 @@ ReactorCheck never infers reaction stoichiometry or oxidation state. A user maps
 measured outlet flows and explicit inlet flows; all species formulas are parsed
 into elemental compositions. Internal molar-flow units are mol/h.
 
+## Internal-standard composition reconstruction
+
+The composition workflow requires a user-selected species `std`, its feed flow,
+an explicit boolean confirmation that it is nonreactive, and a written assumption
+that `F_std,out = F_std,in`. ReactorCheck never selects N2, Ar, or another species
+automatically. With measured outlet mole fractions:
+
+`F_i,out = (y_i,out / y_std,out) F_std,in`.
+
+`fraction`, percent/`mol%`, and `ppm`/`ppmv` inputs are first converted to mole
+fraction. Missing, non-finite, zero, or negative standard fraction prevents the
+division and stops analysis. A nonpositive or dimensionally incompatible standard
+feed also stops analysis.
+
+Composition treatment and water basis are deliberately independent:
+
+- `normalization = raw_measured` uses converted fractions as measured.
+- `normalization = normalized` divides every mapped fraction by the row's raw
+  mapped sum. Raw and used values are both retained.
+- `water_basis = wet` means H2O participates in the composition denominator and
+  therefore requires an explicitly mapped H2O channel.
+- `water_basis = dry` means H2O was excluded from the reported denominator. H2O
+  must not be mapped because a dry composition cannot reconstruct its flow.
+
+A flat `composition.basis` value is rejected because it cannot represent valid
+combinations such as wet+raw or dry+normalized. Global normalization leaves every
+`y_i/y_std` ratio unchanged; synthetic regression tests verify this invariance.
+The raw mapped sum is nevertheless checked against the configured tolerance and
+reported as QC, because a poor sum can reveal missing channels or unit mistakes.
+
 For reference reactant `R` and product `P`:
 
 - Conversion: `X_R = (F_R,in - F_R,out) / F_R,in`.
@@ -50,3 +80,15 @@ QC issues are not silently used to alter calculations. Errors and warnings cover
 missing/duplicate input, negative measurements, robust-MAD outliers, physical
 conversion bounds, carbon-selectivity closure, element balance deviation, and
 non-steady rows. A calculation with QC issues remains inspectable and exportable.
+
+For composition data, physically invalid negative fractions and invalid standard
+fractions stop reconstruction. Raw sum deviation and any converted fraction above
+unity are recorded separately from reaction-metric QC. Normalization never erases
+the raw sum or the original columns.
+
+## Multi-reactant scope
+
+Version 0.2 retains one explicit `reference_reactant`. Combined multi-reactant
+conversion/selectivity denominators require user-declared stoichiometric bases
+and are planned. ReactorCheck does not sum reactant consumption or infer reaction
+coefficients automatically.
