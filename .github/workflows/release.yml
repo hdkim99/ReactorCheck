@@ -1,0 +1,60 @@
+name: Release package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - name: Clean wheel install
+        run: |
+          python -m venv /tmp/reactorcheck-release-venv
+          /tmp/reactorcheck-release-venv/bin/python -m pip install dist/*.whl
+      - name: Installed import, CLI, and example smoke
+        run: |
+          /tmp/reactorcheck-release-venv/bin/python -c "import os, reactorcheck; expected=os.environ['GITHUB_REF_NAME'].removeprefix('v'); assert reactorcheck.__version__ == expected, (reactorcheck.__version__, expected)"
+          /tmp/reactorcheck-release-venv/bin/reactorcheck --help
+          /tmp/reactorcheck-release-venv/bin/reactorcheck analyze \
+            examples/synthetic_composition.csv \
+            --config examples/synthetic_composition_config.json \
+            --output /tmp/reactorcheck-release-example.xlsx
+      - name: Installed GUI wiring smoke
+        run: |
+          xvfb-run -a /tmp/reactorcheck-release-venv/bin/python \
+            tests/gui_widget_smoke.py \
+            examples/synthetic_composition.csv \
+            examples/synthetic_composition_config.json \
+            /tmp/reactorcheck-release-gui.xlsx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/reactorcheck
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
