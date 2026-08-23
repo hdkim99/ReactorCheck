@@ -53,7 +53,8 @@ committing the regenerated XLSX/visual assets.
 ## Self-hosted CI safety
 
 The required CI job runs on the persistent `dgx-spark` self-hosted runner.
-Pushes, manual dispatches, and pull requests from this repository may use that
-runner. Pull requests from forks are deliberately skipped so unreviewed fork
-code cannot execute on research hardware. Maintainers must not weaken this gate;
-review fork changes before reproducing them in a same-repository branch.
+Pushes and manual dispatches may use that runner. Pull requests run there only when
+the current repository owner opens them from a same-repository branch. Fork and
+bot-authored pull-request jobs are deliberately skipped so unreviewed code or dependency
+updates cannot execute on research hardware. Maintainers must review those changes before
+reproducing them in an owner-authored same-repository branch.
