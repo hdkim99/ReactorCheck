@@ -1,0 +1,52 @@
+{
+  "time_column": "time_min",
+  "time_unit": "min",
+  "channels": [
+    {
+      "column": "CO_out",
+      "species": "CO",
+      "formula": "CO",
+      "role": "reactant",
+      "unit": "mol/h",
+      "inlet": "1 mol/h"
+    },
+    {
+      "column": "H2O_out",
+      "species": "H2O",
+      "formula": "H2O",
+      "role": "reactant",
+      "unit": "mol/h",
+      "inlet": "1 mol/h"
+    },
+    {
+      "column": "CO2_out",
+      "species": "CO2",
+      "formula": "CO2",
+      "role": "product",
+      "unit": "mol/h"
+    },
+    {
+      "column": "H2_out",
+      "species": "H2",
+      "formula": "H2",
+      "role": "product",
+      "unit": "mol/h"
+    }
+  ],
+  "reference_reactant": "CO",
+  "catalyst_mass": "0.5 g",
+  "standard_temperature": "273.15 K",
+  "standard_pressure": "1 atm",
+  "reactor_volume": "10 mL",
+  "volumetric_feed": "100 mL/min",
+  "mass_feed": "46.026 g/h",
+  "sty_product": "CO2",
+  "steady_state": {
+    "variables": ["CO_out", "CO2_out"],
+    "minimum_window": 5,
+    "slope_tolerance": 0.01,
+    "variation_tolerance": 0.01
+  },
+  "balance_tolerance_percent": 5.0,
+  "physical_tolerance": 1e-09
+}
