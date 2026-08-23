@@ -10,6 +10,7 @@ from collections.abc import Mapping
 # for common catalytic gas-phase species. Explicit composition remains inspectable.
 ATOMIC_WEIGHTS: Mapping[str, float] = {
     "H": 1.008,
+    "He": 4.002602,
     "C": 12.011,
     "N": 14.007,
     "O": 15.999,
@@ -33,6 +34,7 @@ ATOMIC_WEIGHTS: Mapping[str, float] = {
 
 COMMON_SPECIES: Mapping[str, str] = {
     "H2": "H2",
+    "HE": "He",
     "O2": "O2",
     "N2": "N2",
     "CO": "CO",
@@ -105,7 +107,11 @@ def molecular_weight(composition: Mapping[str, int]) -> float:
 def infer_species(column_name: str) -> tuple[str, str] | None:
     """Infer a common gas species only from complete column-name tokens."""
     tokens = {token.upper() for token in re.findall(r"[A-Za-z0-9]+", column_name)}
-    matches = [(name, formula) for name, formula in COMMON_SPECIES.items() if name in tokens]
+    matches = [
+        ("He" if name == "HE" else name, formula)
+        for name, formula in COMMON_SPECIES.items()
+        if name in tokens
+    ]
     if len(matches) == 1:
         return matches[0]
     return None

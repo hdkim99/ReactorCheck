@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/hdkim99/ReactorCheck/actions/workflows/ci.yml/badge.svg)](https://github.com/hdkim99/ReactorCheck/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/hdkim99/ReactorCheck/blob/main/LICENSE)
 
 ![ReactorCheck internal-standard composition analysis](https://raw.githubusercontent.com/hdkim99/ReactorCheck/main/docs/assets/composition-result.png)
 
@@ -46,8 +46,8 @@ reactorcheck-gui
 ```
 
 The synthetic CO hydrogenation example is available as both
-[`CSV`](examples/synthetic_composition.csv) and
-[`XLSX`](examples/synthetic_composition.xlsx). Its hand calculation reconstructs
+[`CSV`](https://github.com/hdkim99/ReactorCheck/blob/main/examples/synthetic_composition.csv) and
+[`XLSX`](https://github.com/hdkim99/ReactorCheck/blob/main/examples/synthetic_composition.xlsx). Its hand calculation reconstructs
 CO/H2/CH3OH/N2 outlet flows of 0.5/1.0/0.5/1.0 mol/h.
 
 The backward-compatible direct-flow example remains available:
@@ -87,8 +87,18 @@ single `composition.basis` key is rejected rather than guessed.
 Raw composition sums are always retained and checked against a configured
 tolerance. Normalization does not change the internal-standard ratio, a property
 covered by scientific regression tests. See
-[`docs/scientific-definitions.md`](docs/scientific-definitions.md) and the complete
-[`composition configuration`](examples/synthetic_composition_config.json).
+[`docs/scientific-definitions.md`](https://github.com/hdkim99/ReactorCheck/blob/main/docs/scientific-definitions.md) and the complete
+[`composition configuration`](https://github.com/hdkim99/ReactorCheck/blob/main/examples/synthetic_composition_config.json).
+
+## Selected public real-data validation
+
+ReactorCheck's IO and mapping paths have also been exercised against selected
+public fixed-bed reactor exports: a Zenodo online-GC workbook/processed-flow
+pair and a Mendeley Data dry-composition table. This does not imply validation
+for every instrument or published metric definition. Dataset DOI, license,
+checksums, files/columns used, failures found, scientific boundaries, and the
+opt-in reproduction command are recorded in
+[`docs/public-data-sources.md`](https://github.com/hdkim99/ReactorCheck/blob/main/docs/public-data-sources.md).
 
 ## Outputs
 
@@ -132,6 +142,9 @@ twine check dist/*
 ```
 
 Synthetic example data are MIT-licensed with the project. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [CITATION.cff](CITATION.cff).
-The 1280×640 [`social-preview.png`](docs/assets/social-preview.png) is the current
-repository social-preview candidate and is generated from the same real example.
+[CONTRIBUTING.md](https://github.com/hdkim99/ReactorCheck/blob/main/CONTRIBUTING.md)
+and [CITATION.cff](https://github.com/hdkim99/ReactorCheck/blob/main/CITATION.cff).
+The 1280×640
+[`social-preview.png`](https://raw.githubusercontent.com/hdkim99/ReactorCheck/main/docs/assets/social-preview.png)
+is the current repository social-preview candidate and is generated from the same
+synthetic composition example shown above.

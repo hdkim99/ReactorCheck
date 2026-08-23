@@ -3,6 +3,23 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and
 versions follow semantic versioning.
 
+## [0.2.2] - 2026-08-23
+
+### Added
+
+- Added checksum-pinned, opt-in validation against selected public fixed-bed
+  reactor and composition datasets without vendoring their source files.
+- Added helium to the explicit species model for user-confirmed internal-standard
+  reconstruction.
+
+### Fixed
+
+- Detect structurally consistent comma, semicolon, or tab delimiters instead of
+  treating every CSV as comma-delimited.
+- Exclude explicit result and uncertainty headers from conservative species
+  mapping suggestions while preserving detector ambiguity for user review.
+- Updated the release workflow to current Node 24 GitHub actions.
+
 ## [0.2.1] - 2026-08-23
 
 ### Fixed

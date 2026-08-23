@@ -18,4 +18,4 @@ def _match(path: Path, pattern: str) -> str:
 def test_version_surfaces_are_consistent() -> None:
     pyproject = _match(ROOT / "pyproject.toml", r'^version = "([^"]+)"$')
     citation = _match(ROOT / "CITATION.cff", r"^version: ([^\s]+)$")
-    assert __version__ == pyproject == citation == "0.2.1"
+    assert __version__ == pyproject == citation == "0.2.2"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 import tkinter as tk
 from pathlib import Path
@@ -11,7 +12,13 @@ from reactorcheck.gui_controller import GUIController
 from reactorcheck.io import load_config
 
 
-def main(data_path: Path, config_path: Path, output_path: Path) -> None:
+def main(
+    data_path: Path,
+    config_path: Path,
+    output_path: Path,
+    conversion_column: str = "conversion_CO_fraction",
+    expected_conversion: float = 0.5,
+) -> None:
     """Exercise mapped controls, controller, service, core, and export."""
     root = tk.Tk()
     root.withdraw()
@@ -23,10 +30,10 @@ def main(data_path: Path, config_path: Path, output_path: Path) -> None:
     root.update()
     if controller.result is None:
         raise AssertionError("GUI Analyze did not produce a result")
-    conversion = float(controller.result.processed["conversion_CO_fraction"].iloc[0])
+    conversion = float(controller.result.processed[conversion_column].iloc[0])
     # Percent -> fraction -> internal-standard ratio involves ordinary binary
     # floating conversion. This matches the 1e-9 scientific regression tolerance.
-    if abs(conversion - 0.5) > 1e-9:
+    if abs(conversion - expected_conversion) > 1e-9:
         raise AssertionError(f"Unexpected GUI/core conversion: {conversion}")
     if not app.summary_tree.get_children():
         raise AssertionError("GUI result table was not populated")
@@ -37,4 +44,17 @@ def main(data_path: Path, config_path: Path, output_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data", type=Path)
+    parser.add_argument("config", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--conversion-column", default="conversion_CO_fraction")
+    parser.add_argument("--expected-conversion", type=float, default=0.5)
+    arguments = parser.parse_args(sys.argv[1:])
+    main(
+        arguments.data,
+        arguments.config,
+        arguments.output,
+        arguments.conversion_column,
+        arguments.expected_conversion,
+    )

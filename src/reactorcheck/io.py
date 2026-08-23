@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
@@ -24,6 +26,73 @@ class InputError(ValueError):
     """Raised for unsupported or invalid input data."""
 
 
+_CSV_DELIMITERS = (",", ";", "\t")
+_DERIVED_METRIC_TOKENS = {
+    "CONVERSION",
+    "ERROR",
+    "SELECTIVITY",
+    "UNCERTAINTY",
+    "YIELD",
+}
+
+
+def _detect_csv_delimiter(source: Path) -> str:
+    """Detect a conservative delimiter from structurally consistent rows.
+
+    A candidate must split the header into multiple fields and produce the
+    same number of fields in every sampled non-empty record. Multiple valid
+    candidates are ambiguous and require the user to disambiguate the file.
+    """
+    try:
+        with source.open(encoding="utf-8-sig", newline="") as stream:
+            records = [line for line in stream if line.strip()][:50]
+    except (OSError, UnicodeError) as exc:
+        raise InputError(f"Could not inspect CSV delimiter: {exc}") from exc
+
+    if not records:
+        raise InputError("Input table is empty")
+
+    candidates: list[str] = []
+    observed: list[str] = []
+    for delimiter in _CSV_DELIMITERS:
+        try:
+            rows = list(csv.reader(records, delimiter=delimiter, strict=True))
+        except csv.Error:
+            continue
+        widths = [len(row) for row in rows]
+        if widths[0] > 1:
+            observed.append(delimiter)
+        if widths[0] > 1 and len(set(widths)) == 1:
+            candidates.append(delimiter)
+
+    if len(candidates) > 1:
+        names = {",": "comma", ";": "semicolon", "\t": "tab"}
+        readable = ", ".join(names[value] for value in candidates)
+        raise InputError(
+            f"Ambiguous CSV delimiter: multiple consistent delimiters were found ({readable})"
+        )
+    if len(candidates) == 1:
+        return candidates[0]
+    if observed:
+        names = {",": "comma", ";": "semicolon", "\t": "tab"}
+        readable = ", ".join(names[value] for value in observed)
+        raise InputError(
+            "Could not determine a consistent CSV delimiter from the sampled rows "
+            f"(header candidates: {readable})"
+        )
+    # Preserve valid one-column CSV behavior when the header has no candidate
+    # delimiter. Comma is pandas' historical/default CSV basis.
+    return ","
+
+
+def _is_derived_metric_column(column: str) -> bool:
+    """Return whether a header explicitly describes a derived/error metric."""
+    if column.strip().lower().startswith("u_"):
+        return True
+    tokens = {token.upper() for token in re.findall(r"[A-Za-z0-9]+", column)}
+    return bool(tokens & _DERIVED_METRIC_TOKENS)
+
+
 def read_table(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
     """Read CSV or XLSX without modifying source data."""
     source = Path(path)
@@ -31,7 +100,8 @@ def read_table(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
         raise InputError(f"Input file does not exist: {source}")
     suffix = source.suffix.lower()
     if suffix == ".csv":
-        frame = pd.read_csv(source)
+        delimiter = _detect_csv_delimiter(source)
+        frame = pd.read_csv(source, sep=delimiter)
     elif suffix == ".xlsx":
         frame = pd.read_excel(source, sheet_name=sheet_name)
     else:
@@ -47,6 +117,8 @@ def suggest_mappings(frame: pd.DataFrame) -> list[dict[str, str]]:
     """Conservatively suggest recognized species columns for user review."""
     suggestions: list[dict[str, str]] = []
     for column in frame.columns:
+        if _is_derived_metric_column(str(column)):
+            continue
         inferred = infer_species(str(column))
         if inferred is not None:
             name, formula = inferred
