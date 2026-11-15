@@ -54,7 +54,7 @@ def test_release_workflow_is_trusted_publishing_only() -> None:
     assert "/tmp/reactorcheck-release-venv/bin/python -m pip check" in workflow
     assert "id-token: write" in workflow
     assert "name: pypi" in workflow
-    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in workflow
+    assert "pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086" in workflow
     assert "PYPI_API_TOKEN" not in workflow
     assert "secrets." not in workflow
     publish = workflow.split("  publish:\n", maxsplit=1)[1]
