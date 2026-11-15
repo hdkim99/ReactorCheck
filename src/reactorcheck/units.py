@@ -17,7 +17,7 @@ ureg.define("sccm = centimeter ** 3 / minute")
 
 STANDARD_TEMPERATURE = 273.15 * ureg.kelvin
 STANDARD_PRESSURE = 1.0 * ureg.atmosphere
-GAS_CONSTANT = 8.31446261815324 * ureg.joule / ureg.mole / ureg.kelvin
+GAS_CONSTANT: pint.Quantity[Any] = 8.31446261815324 * ureg.joule / ureg.mole / ureg.kelvin
 
 
 class UnitError(ValueError):
